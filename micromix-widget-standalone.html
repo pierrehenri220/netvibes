@@ -1,0 +1,165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:widget="http://www.netvibes.com/ns/">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Micromix</title>
+<meta name="author" content="ピエールランリ・ラヴィン" />
+<meta name="email" content="yakesonchihiro@aim.com" />
+<meta name="website" content="http://getphuture.typepad.com" />
+<meta name="thumbnail" content="http://www.micromix.fr/thumbnail.png" />
+<meta name="version" content="0.2" />
+<meta name="apiVersion" content="1.2" />
+<meta name="inline" content="true" />
+<meta name="autoRefresh" content="1200" />
+<meta name="debugMode" content="false" />
+<link rel="icon" type="image/x-icon" href="http://www.micromix.fr/favicon.ico" />
+<link rel="stylesheet" type="text/css" href="http://www.netvibes.com/themes/uwa/style.css" />
+<script type="text/javascript" src="http://www.netvibes.com/js/UWA/load.js.php?env=Standalone"></script>
+<widget:preferences>
+  <preference name="feedUrl" type="hidden" label="URL" defaultValue="rss.xml" /><!-- //http://www.micromix.fr/feed/ -->
+  <preference name="nbTitles" type="range" label="Number of items to display" defaultValue="20" step="1" min="1" max="100" />
+  <preference name="search" type="hidden" defaultValue="" />
+</widget:preferences>
+<style type="text/css">
+.micromix ul.nv-feedList li { background-position:0 10px;     }
+.micromix ul.nv-feedList li li { background-position:0 5px; }
+.micromix ul.nv-feedList a { display:block; margin:0 15px 0 0; padding:5px; border-bottom:1px solid #000; }
+.micromix ul.nv-feedList li div { height:auto!important; min-height:10px; height:10px; padding:5px 30px 0 15px; }
+.micromix ul.nv-feedList li div a { display:inline; margin:0; padding:0; border-bottom:0; color:#f60; font-weight:bold; }
+.micromix ul.nv-feedList li div ol { margin:0; padding:0; }
+.micromix ul.nv-feedList li div p { padding:5px 10px; }
+</style>
+<script type="text/javascript">
+
+var Micromix = {};
+Micromix.feed = false;
+Micromix.flashPlayer = function( mp3 ) {
+    if ( !mp3 ) {
+      return false;
+    }
+    var url = 'http://www.micromix.fr/wp-content/themes/micromix/swf/player.swf?initialvolume=80&autoplay=1&lefticon=FFFFFF&soundFile=' + mp3;
+    var player = widget.createElement('object');
+    player.setAttribute('width', '274');
+    player.setAttribute('height', '24');
+    player.setAttribute('type', 'application/x-shockwave-flash');
+    player.setAttribute('codebase','http://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=8,0,0,0');
+    player.setAttribute('data', url);
+    var param1 = widget.createElement('param');
+    param1.setAttribute('name', 'wmode');
+    param1.setAttribute('name', 'transparent');
+    player.appendChild(param1);
+    var param2 = widget.createElement('param');
+    param2.setAttribute('name', 'movie');
+    param2.setAttribute('value', url);
+    player.appendChild(param2);
+    return player;
+};
+Micromix.activePlayer = false;
+Micromix.display = function( feed ) {
+
+    if (feed) {
+        Micromix.feed = feed;
+    }
+
+    widget.preferences[1].max = Micromix.feed.getElementsByTagName('item').length; // little cool hack ;-)
+
+    var feedList = widget.createElement('ul');
+    feedList.className = 'nv-feedList';
+    var maxTitles = widget.getValue('nbTitles'), players = [];
+    if ( maxTitles > widget.preferences[1].max ) {
+        maxTitles = widget.preferences[1].max;
+    }
+
+    for(var i=0, items =  Micromix.feed.getElementsByTagName('item'); i < maxTitles; i++) {
+
+        var item = items[i];
+        var listItem = widget.createElement('li');
+
+        // Create player
+        var feedBurnerMp3URL = item.getElementsByTagName('enclosure')[0].getAttribute('url'),
+            splitURL = feedBurnerMp3URL.split('/'),
+            mp3 = 'http://www.micromix.fr/upload/' + splitURL[ splitURL.length - 1 ];
+        players[i] = Micromix.flashPlayer( mp3 );
+
+        // Create link
+        var widgetLink = widget.createElement('a');
+        widgetLink.href = item.getElementsByTagName('link')[0].childNodes[0].nodeValue;
+        var title = widget.createElement('strong'),
+            author = widget.createElement('span');
+        title.appendText( item.getElementsByTagName('title')[0].childNodes[0].nodeValue );
+        author.appendText( ' by ' + item.getElementsByTagName('dc:creator')[0].childNodes[0].nodeValue );
+        widgetLink.appendChild( title );
+        widgetLink.appendChild( author );
+        var content = false;
+        if ( item.getElementsByTagName('content:encoded') ) {
+            var widgetContent = widget.createElement('div'),
+                buffer = widget.createElement('div');
+            buffer.innerHTML = item.getElementsByTagName('content:encoded')[0].childNodes[0].nodeValue.toString();
+            var playList = buffer.getElementsByTagName('ol');
+            if ( playList.length > 0 ) {
+                widgetContent.appendChild( playList[ playList.length - 1 ] );
+            }
+            if ( players[i] ) {
+                var paragraph = widget.createElement('p'),
+                    separator = widget.createElement('span').setText(' | '),
+                    list = {
+                        play: widget.createElement('a').setText('Play'),
+                        download: widget.createElement('a').setText('Download'),
+                        read: widget.createElement('a').setText('Blog Entry')
+                    };
+                list.play.href = '#';
+                list.play.i = i;
+                list.play.onclick = function() {
+                    if ( Micromix.activePlayer ) {
+                        Micromix.activePlayer.remove();
+                    }
+                    Micromix.activePlayer = players[this.i].cloneNode(true);
+                    this.getParent().getParent().appendChild( Micromix.activePlayer );
+                    return false;
+                }
+                list.download.href = mp3;
+                list.read.href = item.getElementsByTagName('link')[0].childNodes[0].nodeValue;
+                paragraph.appendChild(list.play);
+                paragraph.appendChild(separator.cloneNode(true));
+                paragraph.appendChild(list.download);
+                paragraph.appendChild(separator);
+                paragraph.appendChild(list.read);
+                widgetContent.appendChild(paragraph);
+            }
+        }
+
+        if (widgetContent) {
+            widgetLink.onclick = function() {
+                var div = this.getParent().getElementsByTagName('div');
+                if ( div.length > 0 ) {
+                    div[0].toggle();
+                }
+                return false;
+            };
+            widgetContent.hide();
+            listItem.appendChild(widgetLink);
+            listItem.appendChild(widgetContent);
+        }
+        else {
+            listItem.appendChild(widgetLink);
+        }
+
+        feedList.appendChild(listItem);
+
+    }
+    widget.setBody(feedList);
+}
+
+widget.onLoad = function() {
+    widget.body.addClassName('micromix');
+    UWA.Data.getXml(widget.getValue('feedUrl'), Micromix.display);
+}
+
+widget.onRefresh = widget.onLoad;
+
+</script>
+</head>
+<body>
+<p>Loading ...</p>
+</body>
+</html>
